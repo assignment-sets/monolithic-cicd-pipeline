@@ -1,0 +1,60 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 1. Core User Model: Authentication and Role only (ID is Clerk ID)
+// This model dictates who has access and what their base role is.
+model User {
+  id             String    @id // This is the Clerk User ID
+  email          String    @unique
+  role           Role
+  
+  // One-to-one relations to specific profile details
+  adminProfile   Admin?    
+  studentProfile Student?
+  
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+// 2. Admin Profile: Contains details specific to an ADMIN user
+// Uses the Clerk ID (User.id) as its primary key and foreign key (1:1 relation)
+model Admin {
+  userId    String @id @unique // Links directly to User.id
+  name      String // Admin's Name (kept here as requested)
+  
+  user      User   @relation(fields: [userId], references: [id])
+}
+
+// 3. Student Profile: Contains details specific to a STUDENT user
+// Uses the Clerk ID (User.id) as its primary key and foreign key (1:1 relation)
+model Student {
+  userId         String     @id @unique // Links directly to User.id
+  name           String     
+  enrolledAt     DateTime   @default(now())
+  
+  department     Department @relation(fields: [departmentId], references: [id])
+  departmentId   String
+  
+  user           User       @relation(fields: [userId], references: [id])
+}
+
+// 4. Department Model: Remains largely the same, now linked to Student profiles
+model Department {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  students  Student[] // Students linked to this department
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+// 5. Role Enum: Simplified to just ADMIN and STUDENT
+enum Role {
+  ADMIN
+  STUDENT
+}
