@@ -1,0 +1,101 @@
+pipeline {
+    agent any
+
+    environment {
+        TARGET_SERVER = "<app_server_pvt_ip>"
+        SSH_CREDENTIAL_ID = "app-server-ssh-key" 
+        APP_NAME = "student-management"
+    }
+
+    stages {
+        stage('Pull & Install') {
+            steps {
+                echo 'Installing workspace dependencies...'
+                sh 'pnpm install --frozen-lockfile'
+            }
+        }
+
+        stage('Build & Package') {
+            steps {
+                echo 'Compiling production Next.js application build...'
+                sh 'pnpm prisma generate'
+                sh 'pnpm run build'
+                
+                echo 'Archiving build artifacts...'
+                sh 'zip -r deploy.zip .next public package.json pnpm-lock.yaml prisma node_modules'
+            }
+        }
+
+        stage('Identify Idle Target') {
+            steps {
+                script {
+                    sshagent([env.SSH_CREDENTIAL_ID]) {
+                        // Read where the active symlink points. If it doesn't exist yet, default to blue.
+                        def symlinkTarget = sh(
+                            script: "ssh -o StrictHostKeyChecking=no ubuntu@${env.TARGET_SERVER} 'readlink -f /etc/nginx/sites-enabled/student-app || echo blue.conf'",
+                            returnStdout: true
+                        ).trim()
+
+                        if (symlinkTarget.contains("green.conf")) {
+                            env.TARGET_ENV = "blue"
+                            env.TARGET_PORT = "3000"
+                        } else {
+                            env.TARGET_ENV = "green"
+                            env.TARGET_PORT = "3001"
+                        }
+                        echo "Current live configuration: ${symlinkTarget}"
+                        echo "Targeting IDLE environment: ${env.TARGET_ENV} on port ${env.TARGET_PORT}"
+                    }
+                }
+            }
+        }
+
+        stage('Transfer Artifacts') {
+            steps {
+                sshagent([env.SSH_CREDENTIAL_ID]) {
+                    echo "Cleaning and preparing /var/www/${env.APP_NAME}/${env.TARGET_ENV}"
+                    sh "ssh -o StrictHostKeyChecking=no ubuntu@${env.TARGET_SERVER} 'mkdir -p /var/www/${env.APP_NAME}/${env.TARGET_ENV}'"
+                    
+                    echo "Shipping deployment zip archive package..."
+                    sh "scp -o StrictHostKeyChecking=no deploy.zip ubuntu@${env.TARGET_SERVER}:/var/www/${env.APP_NAME}/${env.TARGET_ENV}/"
+                    
+                    echo "Extracting payload bundle on the app server..."
+                    sh "ssh -o StrictHostKeyChecking=no ubuntu@${env.TARGET_SERVER} 'cd /var/www/${env.APP_NAME}/${env.TARGET_ENV} && unzip -o deploy.zip && rm deploy.zip'"
+                }
+            }
+        }
+
+        stage('Verify & Cutover Switch') {
+            steps {
+                sshagent([env.SSH_CREDENTIAL_ID]) {
+                    echo "Cycling systemd unit service: student-${env.TARGET_ENV}..."
+                    sh "ssh -o StrictHostKeyChecking=no ubuntu@${env.TARGET_SERVER} 'sudo systemctl restart student-${env.TARGET_ENV}'"
+                    
+                    echo "Giving Node runtime 5 seconds to warm up..."
+                    sh "sleep 5"
+                    
+                    echo "Testing internal application health gate on port ${env.TARGET_PORT}..."
+                    sh "ssh -o StrictHostKeyChecking=no ubuntu@${env.TARGET_SERVER} 'curl --fail http://localhost:${env.TARGET_PORT}/ || exit 1'"
+                    
+                    echo "Health gate passed! Swapping active production symlink shortcut..."
+                    sh "ssh -o StrictHostKeyChecking=no ubuntu@${env.TARGET_SERVER} 'sudo ln -sf /etc/nginx/sites-available/student-${env.TARGET_ENV}.conf /etc/nginx/sites-enabled/student-app'"
+                    
+                    echo "Reloading Nginx configuration worker engines..."
+                    sh "ssh -o StrictHostKeyChecking=no ubuntu@${env.TARGET_SERVER} 'sudo systemctl reload nginx'"
+                    
+                    echo "Zero-downtime Blue-Green rotation successful."
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Wiping deployment workspace build cache...'
+            cleanWs()
+        }
+        failure {
+            echo 'Pipeline crashed. The current active production symlink was left unchanged.'
+        }
+    }
+}
