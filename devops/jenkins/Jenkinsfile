@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        TARGET_SERVER = "<app_server_pvt_ip>"
+        TARGET_SERVER = "172.31.43.228"
         SSH_CREDENTIAL_ID = "app-server-ssh-key" 
         APP_NAME = "student-management"
     }
