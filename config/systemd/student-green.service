@@ -1,0 +1,22 @@
+[Unit]
+Description=NextJS Student Management - Green Node Engine
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/var/www/student-management/green
+
+# Step 1: Pull in the exact same shared database & Clerk secrets
+EnvironmentFile=/var/www/student-management/shared.env
+
+# Step 2: Inject the explicit environmental variables for the Green state
+Environment=PORT=3001
+Environment=APP_ENV=green
+Environment=NODE_ENV=production
+
+ExecStart=/usr/bin/node node_modules/.bin/next start
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

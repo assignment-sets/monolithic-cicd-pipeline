@@ -1,0 +1,22 @@
+[Unit]
+Description=NextJS Student Management - Blue Node Engine
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/var/www/student-management/blue
+
+# Step 1: Automatically pull in all your shared database & Clerk secrets
+EnvironmentFile=/var/www/student-management/shared.env
+
+# Step 2: Inject the explicit environmental variables for the Blue state
+Environment=PORT=3000
+Environment=APP_ENV=blue
+Environment=NODE_ENV=production
+
+ExecStart=/usr/bin/node node_modules/.bin/next start
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
