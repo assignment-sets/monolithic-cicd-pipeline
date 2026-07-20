@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        TARGET_SERVER = "172.31.43.228"
+        TARGET_SERVER = "172.31.34.207"
         SSH_CREDENTIAL_ID = "app-server-ssh-key" 
         APP_NAME = "student-management"
         NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = "pk_test_ZnVua3ktYmVuZ2FsLTY1LmNsZXJrLmFjY291bnRzLmRldiQ"
