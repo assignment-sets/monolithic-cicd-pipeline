@@ -1,6 +1,6 @@
 resource "aws_instance" "jenkins_server" {
   ami                    = data.aws_ami.ubuntu.id
-  instance_type          = "t3a.small"
+  instance_type          = "t3a.medium"
   subnet_id              = var.target_subnet_id
   key_name               = aws_key_pair.generated_key.key_name
   vpc_security_group_ids = [aws_security_group.pipeline_sg.id]

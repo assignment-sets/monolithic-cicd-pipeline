@@ -68,7 +68,7 @@ resource "aws_security_group" "pipeline_sg" {
     from_port   = 8080
     to_port     = 8080
     protocol    = "tcp"
-    cidr_blocks = ["${chomp(data.http.my_public_ip.response_body)}/32"]
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   # 4. GRAFANA DASHBOARD PORT (Restricted to your home IP only)
