@@ -23,8 +23,13 @@ pipeline {
                 sh 'pnpm prisma generate'
                 sh 'pnpm run build'
                 
-                echo 'Archiving build artifacts...'
-                sh 'zip -r deploy.zip .next public package.json pnpm-lock.yaml prisma node_modules'
+                echo 'Preparing standalone production artifacts...'
+                sh 'cp -r public .next/standalone/'
+                sh 'cp -r .next/static .next/standalone/.next/'
+                
+                echo 'Archiving compact deployment package...'
+                // Zip only the standalone outputs. No top-level node_modules zipped!
+                sh 'cd .next/standalone && zip -r ../../deploy.zip .'
             }
         }
 

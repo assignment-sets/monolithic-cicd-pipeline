@@ -15,7 +15,7 @@ Environment=PORT=3000
 Environment=APP_ENV=blue
 Environment=NODE_ENV=production
 
-ExecStart=/usr/bin/node node_modules/.bin/next start
+ExecStart=/usr/bin/node server.js
 Restart=always
 
 [Install]
