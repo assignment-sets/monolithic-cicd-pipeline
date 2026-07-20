@@ -27,8 +27,20 @@ pipeline {
                 sh 'cp -r public .next/standalone/'
                 sh 'cp -r .next/static .next/standalone/.next/'
                 
+                echo 'Injecting external pnpm dependencies into standalone bundle...'
+                sh 'mkdir -p .next/standalone/node_modules'
+                
+                // -rL copies the actual files behind the pnpm symlinks so they don't break on the server
+                sh 'cp -rL node_modules/@prisma .next/standalone/node_modules/'
+                sh 'cp -rL node_modules/prisma .next/standalone/node_modules/'
+                sh 'cp -rL node_modules/pino .next/standalone/node_modules/'
+                sh 'cp -rL node_modules/pino-loki .next/standalone/node_modules/'
+                sh 'cp -rL node_modules/thread-stream .next/standalone/node_modules/'
+                
+                // Prisma requires the actual schema folder at the runtime root
+                sh 'cp -r prisma .next/standalone/'
+                
                 echo 'Archiving compact deployment package...'
-                // Zip only the standalone outputs. No top-level node_modules zipped!
                 sh 'cd .next/standalone && zip -r ../../deploy.zip .'
             }
         }
