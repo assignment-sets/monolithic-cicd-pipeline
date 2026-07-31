@@ -1,199 +1,79 @@
-# Student Management Platform API Documentation
+# Monolithic CI/CD Pipeline
 
-This is a sample nextjs project made to be used as a quick lightweight full stack web app prototype for performing tasks like ci/cd, deployment, containerization, tests etc.
+A self-hosted CI/CD pipeline deployed on AWS featuring GitHub Actions quality gates, Jenkins-driven CD, Terraform-provisioned infrastructure, blue-green deployment strategies, and full observability via OpenTelemetry, Prometheus, Grafana, and Loki.
 
-This document outlines the API endpoints available in the application, including the request bodies and authentication requirements.
+## Architecture & Workflow
 
-Authentication is handled by Clerk. When making API requests from an external client, pass the Clerk session token in the authorization header:
-`Authorization: Bearer <clerk_session_token>`
+This repository contains the infrastructure and deployment configurations for an automated software delivery pipeline. A Next.js application serves as the deployment workload to validate the pipeline functionality.
 
----
-
-## 🔐 Auth & Onboarding Endpoints
-
-### 1. Sync User Profile
-
-Checks if the logged-in user exists in Postgres and has a profile. Recreates the profile if missing, or flags that onboarding is required.
-
-- **Method**: `POST`
-- **Route**: `/api/v1/auth/sync`
-- **Headers**: `Authorization: Bearer <session_token>`
-- **curl**:
-
-```bash
-curl -X POST https://localhost:3000/api/v1/auth/sync \
-  -H "Authorization: Bearer YOUR_CLERK_SESSION_TOKEN" \
-  -H "Content-Type: application/json"
+```
+ Pull Request / Push to main
+              │
+              ▼
+   ┌─────────────────────┐
+   │ GitHub Actions (CI) │  Install Dependencies ➔ Generate Prisma Client ➔ Lint ➔ Unit Tests
+   └──────────┬──────────┘
+              │ Merge to Main
+              ▼
+   ┌─────────────────────┐
+   │    Jenkins (CD)     │  Build Next.js ➔ Package Standalone Bundle ➔ Transfer via SSH
+   └──────────┬──────────┘
+              │ SSH Deployment Execution
+              ▼
+   ┌───────────────────────────────┐
+   │  App Server (Blue ⇄ Green)    │  Deploy to Idle Target ➔ Health Check
+   │  Nginx Reverse Proxy          │  Cutover: Update Symlink ➔ Reload Nginx
+   └──────────┬────────────────────┘
+              │ Metrics & Logs Export
+              ▼
+   ┌─────────────────────────────────┐
+   │        Monitoring Server        │  OpenTelemetry Collector ➔ Prometheus & Loki ➔ Grafana
+   └─────────────────────────────────┘
 ```
 
-### 2. Onboard User
+## Features
 
-Completes the setup of the user by assigning their role (ADMIN or STUDENT), full name, and department (if a student).
+- **CI Quality Gate:** Automates dependency installation, Prisma client generation, linting, and unit execution via GitHub Actions on every push or pull request.
+- **Automated CD Pipeline:** Orchestrates artifact builds, standalone packaging, and secure target transport via Jenkins pipelines.
+- **Blue-Green Deployment:** Achieves zero-downtime cutovers utilizing dual target environments fronted by an Nginx reverse proxy with automated pre-cutover health checks and instant rollback capability.
+- **Infrastructure as Code (IaC):** Provisions all cloud resources deterministically using Terraform.
+- **Centralized Observability:** Aggregates system metrics and logs using an OpenTelemetry Collector routing to Prometheus (metrics) and Loki (logs), visualized through unified Grafana dashboards.
 
-- **Method**: `POST`
-- **Route**: `/api/v1/auth/onboard`
-- **Headers**: `Authorization: Bearer <session_token>`
-- **Body**:
+## Infrastructure Architecture
 
-```json
-{
-  "role": "STUDENT",
-  "name": "John Doe",
-  "departmentId": "dept_cuid_here"
-}
+The infrastructure is provisioned via Terraform across three AWS EC2 instances within a dedicated VPC:
+
+| Server         | Instance Type | Purpose                                                                |
+| :------------- | :------------ | :--------------------------------------------------------------------- |
+| **Jenkins**    | `t3a.medium`  | Orchestrates builds & deployment pipelines.                            |
+| **App Server** | `t3a.micro`   | Hosts active and idle application environments behind Nginx.           |
+| **Monitoring** | `t3a.small`   | Runs the OpenTelemetry Collector, Prometheus, Grafana, and Loki stack. |
+
+## Repository Structure
+
+```text
+.
+├── .github/       # GitHub Actions workflow configurations (CI)
+├── infra/         # Terraform configurations for AWS infrastructure
+├── devops/        # Jenkinsfile pipelines and Nginx configurations
+├── monitoring/    # Docker Compose stacks for Prometheus, Grafana, Loki, and OTel
+└── config/        # Systemd unit files for active/idle application services
 ```
 
-- **curl**:
+| Path                 | Component Description                                                                   |
+| :------------------- | :-------------------------------------------------------------------------------------- |
+| `.github/workflows/` | CI workflow definitions (linting, code generation, testing).                            |
+| `infra/terraform/`   | Provisioning manifests for EC2 instances, security groups, networking, and key pairs.   |
+| `devops/jenkins/`    | `Jenkinsfile` logic mapping environment detection, deployment, and cutover stages.      |
+| `devops/nginx/`      | Reverse proxy routing and site configurations (`blue.conf` / `green.conf`).             |
+| `monitoring/`        | Docker Compose files and configuration schemas for OTel, Prometheus, Loki, and Grafana. |
+| `config/systemd/`    | Service unit configurations (`student-blue.service` / `student-green.service`).         |
 
-```bash
-curl -X POST https://localhost:3000/api/v1/auth/onboard \
-  -H "Authorization: Bearer YOUR_CLERK_SESSION_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "role": "STUDENT",
-    "name": "John Doe",
-    "departmentId": "dept_cuid_here"
-  }'
-```
+## Technical Stack
 
----
-
-## 🏢 Department Endpoints
-
-### 1. List Departments
-
-Returns a list of all academic departments. If the database is empty, it automatically seeds default departments.
-
-- **Method**: `GET`
-- **Route**: `/api/v1/departments`
-- **Headers**: `Authorization: Bearer <session_token>`
-- **curl**:
-
-```bash
-curl -X GET https://localhost:3000/api/v1/departments \
-  -H "Authorization: Bearer YOUR_CLERK_SESSION_TOKEN"
-```
-
----
-
-## 🎓 Student Endpoints (Student Scope)
-
-### 1. Fetch My Profile
-
-Retrieves the profile of the currently logged-in student.
-
-- **Method**: `GET`
-- **Route**: `/api/v1/student/me`
-- **Headers**: `Authorization: Bearer <session_token>`
-- **curl**:
-
-```bash
-curl -X GET https://localhost:3000/api/v1/student/me \
-  -H "Authorization: Bearer YOUR_CLERK_SESSION_TOKEN"
-```
-
----
-
-## 🛡️ Admin Endpoints (Admin Scope Only)
-
-### 1. Create a Student
-
-Creates a student user in Clerk (generating their username, first name, and last name) and creates their corresponding database records inside a safe transaction.
-
-- **Method**: `POST`
-- **Route**: `/api/v1/admin/students`
-- **Headers**: `Authorization: Bearer <session_token>`
-- **Body**:
-
-```json
-{
-  "email": "student@example.com",
-  "password": "studentpassword123",
-  "name": "Alice Johnson",
-  "departmentId": "dept_cuid_here"
-}
-```
-
-- **curl**:
-
-```bash
-curl -X POST https://localhost:3000/api/v1/admin/students \
-  -H "Authorization: Bearer YOUR_CLERK_SESSION_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "student@example.com",
-    "password": "studentpassword123",
-    "name": "Alice Johnson",
-    "departmentId": "dept_cuid_here"
-  }'
-```
-
-### 2. List All Students
-
-Lists all registered students including their email, department, and registration timestamps.
-
-- **Method**: `GET`
-- **Route**: `/api/v1/admin/students`
-- **Headers**: `Authorization: Bearer <session_token>`
-- **curl**:
-
-```bash
-curl -X GET https://localhost:3000/api/v1/admin/students \
-  -H "Authorization: Bearer YOUR_CLERK_SESSION_TOKEN"
-```
-
-### 3. Fetch Single Student Profile
-
-Retrieves the details of a specific student by their User ID.
-
-- **Method**: `GET`
-- **Route**: `/api/v1/admin/students/:id`
-- **Headers**: `Authorization: Bearer <session_token>`
-- **curl**:
-
-```bash
-curl -X GET https://localhost:3000/api/v1/admin/students/user_2abc123 \
-  -H "Authorization: Bearer YOUR_CLERK_SESSION_TOKEN"
-```
-
-### 4. Update Student Profile
-
-Updates the name or department of a student, and propagates the name update to their Clerk profile.
-
-- **Method**: `PUT`
-- **Route**: `/api/v1/admin/students/:id`
-- **Headers**: `Authorization: Bearer <session_token>`
-- **Body**:
-
-```json
-{
-  "name": "Alice J. Smith",
-  "departmentId": "new_dept_cuid_here"
-}
-```
-
-- **curl**:
-
-```bash
-curl -X PUT https://localhost:3000/api/v1/admin/students/user_2abc123 \
-  -H "Authorization: Bearer YOUR_CLERK_SESSION_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Alice J. Smith",
-    "departmentId": "new_dept_cuid_here"
-  }'
-```
-
-### 5. Delete Student Profile
-
-Completely deletes the student from Clerk and removes their records from the Postgres database inside a cascade transaction.
-
-- **Method**: `DELETE`
-- **Route**: `/api/v1/admin/students/:id`
-- **Headers**: `Authorization: Bearer <session_token>`
-- **curl**:
-
-```bash
-curl -X DELETE https://localhost:3000/api/v1/admin/students/user_2abc123 \
-  -H "Authorization: Bearer YOUR_CLERK_SESSION_TOKEN"
-```
+- **CI/CD:** GitHub Actions, Jenkins
+- **Infrastructure as Code:** Terraform, AWS (VPC, EC2, Security Groups)
+- **Deployment & Web Server:** Nginx, Systemd
+- **Deployment Strategy:** Blue-Green
+- **Observability:** OpenTelemetry Collector, Prometheus, Grafana, Loki
+- **Target Workload:** Next.js, Prisma, PostgreSQL
