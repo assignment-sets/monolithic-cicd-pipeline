@@ -2,11 +2,11 @@ pipeline {
     agent any
 
     parameters {
-        string(name: 'APP_SERVER_IP', defaultValue: '172.31.34.207', description: 'Target App Server Private IP')
+        string(name: 'APP_SERVER_IP', defaultValue: '172.31.36.69', description: 'Target App Server Private IP')
     }
 
     environment {
-        TARGET_SERVER = "${params.APP_SERVER_IP ?: '172.31.34.207'}"
+        TARGET_SERVER = "${params.APP_SERVER_IP ?: '172.31.36.69'}"
         SSH_CREDENTIAL_ID = "app-server-ssh-key" 
         APP_NAME = "student-management"
         NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = "pk_test_ZnVua3ktYmVuZ2FsLTY1LmNsZXJrLmFjY291bnRzLmRldiQ"
@@ -33,13 +33,13 @@ pipeline {
                 
                 echo 'Injecting external pnpm dependencies into standalone bundle...'
                 sh 'mkdir -p .next/standalone/node_modules'
+                sh 'rm -rf .next/standalone/node_modules/@prisma .next/standalone/node_modules/prisma .next/standalone/node_modules/pino .next/standalone/node_modules/pino-loki'
                 
                 // -rL copies the actual files behind the pnpm symlinks so they don't break on the server
                 sh 'cp -rL node_modules/@prisma .next/standalone/node_modules/'
                 sh 'cp -rL node_modules/prisma .next/standalone/node_modules/'
                 sh 'cp -rL node_modules/pino .next/standalone/node_modules/'
                 sh 'cp -rL node_modules/pino-loki .next/standalone/node_modules/'
-                sh 'cp -rL node_modules/thread-stream .next/standalone/node_modules/'
                 
                 // Prisma requires the actual schema folder at the runtime root
                 sh 'cp -r prisma .next/standalone/'
