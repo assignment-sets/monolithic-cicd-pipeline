@@ -1,6 +1,6 @@
 resource "aws_instance" "app_server" {
   ami                    = data.aws_ami.ubuntu.id
-  instance_type          = "t3a.micro"
+  instance_type          = "t3a.small"
   subnet_id              = var.target_subnet_id
   key_name               = aws_key_pair.generated_key.key_name
   vpc_security_group_ids = [aws_security_group.pipeline_sg.id]
