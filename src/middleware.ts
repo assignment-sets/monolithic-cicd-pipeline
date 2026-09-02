@@ -4,6 +4,7 @@ import logger from "@/lib/logger";
 
 // Define which routes are completely public / webhooks
 const isPublicRoute = createRouteMatcher([
+  "/api/health(.*)",
   "/api/webhooks/clerk(.*)", 
   "/api/v1/webhooks/clerk(.*)" // Catching both variations just in case
 ]);
