@@ -17,7 +17,7 @@ pipeline {
         stage('Pull & Install') {
             steps {
                 echo 'Installing workspace dependencies via npm...'
-                sh 'npm install'
+                sh 'npm install --legacy-peer-deps'
             }
         }
 
