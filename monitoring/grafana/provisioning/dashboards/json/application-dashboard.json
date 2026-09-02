@@ -3,10 +3,7 @@
     "list": [
       {
         "builtIn": 1,
-        "datasource": {
-          "type": "grafana",
-          "uid": "-- Grafana --"
-        },
+        "datasource": "-- Grafana --",
         "enable": true,
         "hide": true,
         "name": "Annotations & Alerts",
@@ -34,10 +31,7 @@
       "type": "row"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
+      "datasource": "Prometheus",
       "description": "Rate of incoming HTTP requests handled by Next.js per second",
       "fieldConfig": {
         "defaults": {
@@ -78,10 +72,7 @@
       },
       "targets": [
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
+          "datasource": "Prometheus",
           "editorMode": "code",
           "expr": "sum(rate(nextjs_http_server_duration_milliseconds_count[1m])) or sum(rate(nextjs_http_server_request_duration_seconds_count[1m])) or vector(0)",
           "legendFormat": "Throughput (req/s)",
@@ -93,10 +84,7 @@
       "type": "timeseries"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
+      "datasource": "Prometheus",
       "description": "Calculated p95 and p99 percentile response times across application routes",
       "fieldConfig": {
         "defaults": {
@@ -137,10 +125,7 @@
       },
       "targets": [
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
+          "datasource": "Prometheus",
           "editorMode": "code",
           "expr": "histogram_quantile(0.95, sum(rate(nextjs_http_server_duration_milliseconds_bucket[1m])) by (le))",
           "legendFormat": "p95 Latency (ms)",
@@ -148,10 +133,7 @@
           "refId": "A"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
+          "datasource": "Prometheus",
           "editorMode": "code",
           "expr": "histogram_quantile(0.99, sum(rate(nextjs_http_server_duration_milliseconds_bucket[1m])) by (le))",
           "legendFormat": "p99 Latency (ms)",
@@ -163,10 +145,7 @@
       "type": "timeseries"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
+      "datasource": "Prometheus",
       "description": "Tracking 4xx client errors and 5xx internal server errors",
       "fieldConfig": {
         "defaults": {
@@ -237,10 +216,7 @@
       },
       "targets": [
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
+          "datasource": "Prometheus",
           "editorMode": "code",
           "expr": "sum(rate(nextjs_http_server_duration_milliseconds_count{http_status_code=~\"4..\"}[1m])) or vector(0)",
           "legendFormat": "4xx Client Errors",
@@ -248,10 +224,7 @@
           "refId": "A"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
+          "datasource": "Prometheus",
           "editorMode": "code",
           "expr": "sum(rate(nextjs_http_server_duration_milliseconds_count{http_status_code=~\"5..\"}[1m])) or vector(0)",
           "legendFormat": "5xx Server Errors",
@@ -275,10 +248,7 @@
       "type": "row"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
+      "datasource": "Prometheus",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -328,10 +298,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
+          "datasource": "Prometheus",
           "editorMode": "code",
           "expr": "(nextjs_process_cpu_utilization * 100) or vector(0)",
           "legendFormat": "Process CPU (%)",
@@ -343,10 +310,7 @@
       "type": "gauge"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
+      "datasource": "Prometheus",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -396,10 +360,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
+          "datasource": "Prometheus",
           "editorMode": "code",
           "expr": "nextjs_process_memory_usage / 1024 / 1024",
           "legendFormat": "Memory Used",
@@ -411,10 +372,7 @@
       "type": "stat"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
+      "datasource": "Prometheus",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -449,10 +407,7 @@
       },
       "targets": [
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
+          "datasource": "Prometheus",
           "editorMode": "code",
           "expr": "nextjs_nodejs_eventloop_delay_p99_seconds or vector(0)",
           "legendFormat": "Event Loop Delay p99",
@@ -476,10 +431,7 @@
       "type": "row"
     },
     {
-      "datasource": {
-        "type": "loki",
-        "uid": "loki"
-      },
+      "datasource": "Loki",
       "description": "Live streaming structured logs collected via pino-loki",
       "gridPos": {
         "h": 12,
@@ -500,10 +452,7 @@
       },
       "targets": [
         {
-          "datasource": {
-            "type": "loki",
-            "uid": "loki"
-          },
+          "datasource": "Loki",
           "editorMode": "code",
           "expr": "{app=\"student-management-nextjs\"}",
           "queryType": "range",
@@ -537,6 +486,6 @@
   "timezone": "browser",
   "title": "Next.js Application & Infrastructure Observability",
   "uid": "nextjs-app-observability",
-  "version": 2,
+  "version": 1,
   "weekStart": ""
 }
