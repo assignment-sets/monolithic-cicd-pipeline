@@ -38,7 +38,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Rate of incoming HTTP requests handled by the Next.js service per second",
+      "description": "Rate of incoming HTTP requests handled by Next.js per second",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -83,7 +83,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(rate(http_server_duration_count[1m])) or sum(rate(nextjs_http_server_duration_count[1m])) or vector(0)",
+          "expr": "sum(rate(nextjs_http_server_duration_milliseconds_count[1m])) or sum(rate(nextjs_http_server_request_duration_seconds_count[1m])) or vector(0)",
           "legendFormat": "Throughput (req/s)",
           "range": true,
           "refId": "A"
@@ -142,8 +142,8 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(rate(http_server_duration_bucket[1m])) by (le)) or histogram_quantile(0.95, sum(rate(nextjs_http_server_duration_bucket[1m])) by (le))",
-          "legendFormat": "p95 Latency",
+          "expr": "histogram_quantile(0.95, sum(rate(nextjs_http_server_duration_milliseconds_bucket[1m])) by (le))",
+          "legendFormat": "p95 Latency (ms)",
           "range": true,
           "refId": "A"
         },
@@ -153,8 +153,8 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum(rate(http_server_duration_bucket[1m])) by (le)) or histogram_quantile(0.99, sum(rate(nextjs_http_server_duration_bucket[1m])) by (le))",
-          "legendFormat": "p99 Latency",
+          "expr": "histogram_quantile(0.99, sum(rate(nextjs_http_server_duration_milliseconds_bucket[1m])) by (le))",
+          "legendFormat": "p99 Latency (ms)",
           "range": true,
           "refId": "B"
         }
@@ -242,7 +242,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(rate(http_server_duration_count{http_status_code=~\"4..\"}[1m])) or sum(rate(nextjs_http_server_duration_count{http_status_code=~\"4..\"}[1m])) or vector(0)",
+          "expr": "sum(rate(nextjs_http_server_duration_milliseconds_count{http_status_code=~\"4..\"}[1m])) or vector(0)",
           "legendFormat": "4xx Client Errors",
           "range": true,
           "refId": "A"
@@ -253,7 +253,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(rate(http_server_duration_count{http_status_code=~\"5..\"}[1m])) or sum(rate(nextjs_http_server_duration_count{http_status_code=~\"5..\"}[1m])) or vector(0)",
+          "expr": "sum(rate(nextjs_http_server_duration_milliseconds_count{http_status_code=~\"5..\"}[1m])) or vector(0)",
           "legendFormat": "5xx Server Errors",
           "range": true,
           "refId": "B"
@@ -304,7 +304,7 @@
               }
             ]
           },
-          "unit": "percentunit"
+          "unit": "percent"
         },
         "overrides": []
       },
@@ -333,8 +333,8 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "process_cpu_usage or nextjs_process_cpu_usage or vector(0)",
-          "legendFormat": "Process CPU",
+          "expr": "(nextjs_process_cpu_utilization * 100) or vector(0)",
+          "legendFormat": "Process CPU (%)",
           "range": true,
           "refId": "A"
         }
@@ -362,11 +362,11 @@
               },
               {
                 "color": "yellow",
-                "value": 300
+                "value": 250
               },
               {
                 "color": "red",
-                "value": 500
+                "value": 450
               }
             ]
           },
@@ -401,14 +401,67 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "(process_memory_usage or nextjs_process_memory_usage or vector(0)) / 1024 / 1024",
-          "legendFormat": "Process Memory",
+          "expr": "nextjs_process_memory_usage / 1024 / 1024",
+          "legendFormat": "Memory Used",
           "range": true,
           "refId": "A"
         }
       ],
       "title": "Memory Consumption (MB)",
       "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "Delay (s)",
+            "axisPlacement": "auto",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 12,
+        "x": 12,
+        "y": 10
+      },
+      "id": 7,
+      "options": {
+        "legend": {
+          "calcs": ["max", "lastNotNull"],
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "nextjs_nodejs_eventloop_delay_p99_seconds or vector(0)",
+          "legendFormat": "Event Loop Delay p99",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Node.js Event Loop Lag (p99)",
+      "type": "timeseries"
     },
     {
       "collapsed": false,
@@ -484,6 +537,6 @@
   "timezone": "browser",
   "title": "Next.js Application & Infrastructure Observability",
   "uid": "nextjs-app-observability",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }
