@@ -1,8 +1,12 @@
 pipeline {
     agent any
 
+    parameters {
+        string(name: 'APP_SERVER_IP', defaultValue: '172.31.34.207', description: 'Target App Server Private IP')
+    }
+
     environment {
-        TARGET_SERVER = "172.31.34.207"
+        TARGET_SERVER = "${params.APP_SERVER_IP ?: '172.31.34.207'}"
         SSH_CREDENTIAL_ID = "app-server-ssh-key" 
         APP_NAME = "student-management"
         NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = "pk_test_ZnVua3ktYmVuZ2FsLTY1LmNsZXJrLmFjY291bnRzLmRldiQ"
@@ -41,7 +45,7 @@ pipeline {
                 sh 'cp -r prisma .next/standalone/'
                 
                 echo 'Archiving compact deployment package...'
-                sh 'cd .next/standalone && zip -r ../../deploy.zip .'
+                sh 'cd .next/standalone && zip -q -r ../../deploy.zip .'
             }
         }
 
@@ -79,7 +83,7 @@ pipeline {
                     sh "scp -o StrictHostKeyChecking=no deploy.zip ubuntu@${env.TARGET_SERVER}:/var/www/${env.APP_NAME}/${env.TARGET_ENV}/"
                     
                     echo "Extracting payload bundle on the app server..."
-                    sh "ssh -o StrictHostKeyChecking=no ubuntu@${env.TARGET_SERVER} 'cd /var/www/${env.APP_NAME}/${env.TARGET_ENV} && unzip -o deploy.zip && rm deploy.zip'"
+                    sh "ssh -o StrictHostKeyChecking=no ubuntu@${env.TARGET_SERVER} 'cd /var/www/${env.APP_NAME}/${env.TARGET_ENV} && unzip -q -o deploy.zip && rm deploy.zip'"
                 }
             }
         }
@@ -90,14 +94,24 @@ pipeline {
                     echo "Cycling systemd unit service: student-${env.TARGET_ENV}..."
                     sh "ssh -o StrictHostKeyChecking=no ubuntu@${env.TARGET_SERVER} 'sudo systemctl restart student-${env.TARGET_ENV}'"
                     
-                    echo "Giving Node runtime 5 seconds to warm up..."
-                    sh "sleep 5"
-                    
-                    echo "Testing internal application health gate on port ${env.TARGET_PORT}..."
-                    sh "ssh -o StrictHostKeyChecking=no ubuntu@${env.TARGET_SERVER} 'curl --fail http://localhost:${env.TARGET_PORT}/ || exit 1'"
+                    echo "Testing internal application health gate on port ${env.TARGET_PORT} via /api/health..."
+                    sh """
+                    ssh -o StrictHostKeyChecking=no ubuntu@${env.TARGET_SERVER} '
+                        for i in \$(seq 1 6); do
+                            if curl -s -f http://localhost:${env.TARGET_PORT}/api/health > /dev/null; then
+                                echo "Health check PASSED on port ${env.TARGET_PORT}!"
+                                exit 0
+                            fi
+                            echo "Waiting for Next.js service to become healthy... (attempt \$i/6)"
+                            sleep 3
+                        done
+                        echo "Health check FAILED after 6 attempts on port ${env.TARGET_PORT}."
+                        exit 1
+                    '
+                    """
                     
                     echo "Health gate passed! Swapping active production symlink shortcut..."
-                    sh "ssh -o StrictHostKeyChecking=no ubuntu@${env.TARGET_SERVER} 'sudo ln -sf /etc/nginx/sites-available/student-${env.TARGET_ENV}.conf /etc/nginx/sites-enabled/student-app'"
+                    sh "ssh -o StrictHostKeyChecking=no ubuntu@${env.TARGET_SERVER} 'sudo ln -sf /etc/nginx/sites-available/${env.TARGET_ENV}.conf /etc/nginx/sites-enabled/student-app'"
                     
                     echo "Reloading Nginx configuration worker engines..."
                     sh "ssh -o StrictHostKeyChecking=no ubuntu@${env.TARGET_SERVER} 'sudo systemctl reload nginx'"
