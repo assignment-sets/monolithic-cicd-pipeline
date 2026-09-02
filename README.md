@@ -46,7 +46,7 @@ The infrastructure is provisioned via Terraform across three AWS EC2 instances w
 | Server         | Instance Type | Purpose                                                                |
 | :------------- | :------------ | :--------------------------------------------------------------------- |
 | **Jenkins**    | `t3a.medium`  | Orchestrates builds & deployment pipelines.                            |
-| **App Server** | `t3a.micro`   | Hosts active and idle application environments behind Nginx.           |
+| **App Server** | `t3a.small`   | Hosts active and idle application environments behind Nginx.           |
 | **Monitoring** | `t3a.small`   | Runs the OpenTelemetry Collector, Prometheus, Grafana, and Loki stack. |
 
 ## Repository Structure
@@ -77,3 +77,47 @@ The infrastructure is provisioned via Terraform across three AWS EC2 instances w
 - **Deployment Strategy:** Blue-Green
 - **Observability:** OpenTelemetry Collector, Prometheus, Grafana, Loki
 - **Target Workload:** Next.js, Prisma, PostgreSQL
+
+### Pipeline Speed & Deployment Duration
+
+- **Cycle Duration:** *TBD / Pending benchmark measurement during live pipeline run.*
+
+### Quality Gates & Test Coverage
+
+- **Enforced Quality Gates:**
+  - **Prisma Schema Validation:** `pnpm prisma generate`
+  - **Static Code Analysis:** `pnpm run lint` (ESLint 9)
+  - **Automated Unit & Integration Tests:** `pnpm run test:run` (Vitest test suites verifying UI components, role authorization middleware, and core utilities)
+- **Code Coverage Target:** *TBD / Pending coverage threshold reporting.*
+
+### Deployment Strategy & Uptime
+
+- **Strategy:** Zero-Downtime Blue-Green Deployment using dual Systemd units (`student-blue.service` on port 3000 and `student-green.service` on port 3001) fronted by an Nginx reverse proxy.
+- **Availability Target:** **100% Uptime (0s dropped requests)**.
+- **Verification Gate:** Pre-cutover health check probe queries `/api/health` before updating traffic routing.
+- **Cutover Mechanism:** Atomic symlink swap (`/etc/nginx/sites-enabled/student-app` $\to$ `/etc/nginx/sites-available/[blue|green].conf`) followed by a graceful `systemctl reload nginx` (no worker drops).
+
+### Cloud Footprint & Provisioning
+
+- **Cloud Provider & Region:** AWS (`ap-south-1`) provisioned entirely via Terraform.
+- **Managed Compute Nodes (3 EC2 Instances):**
+  - **Jenkins Server:** `t3a.medium` (20 GB gp3 volume) — Builds and orchestrates CD cutover.
+  - **App Server:** `t3a.small` (10 GB gp3 volume) — Hosts Blue/Green application instances and Nginx reverse proxy.
+  - **Monitoring Server:** `t3a.small` (20 GB gp3 volume) — Hosts the Docker Compose observability stack.
+- **Network & Perimeter:** Custom security group (`pipeline-shared-security-group`) allowing open internal node-to-node communication, SSH restricted to deployer IP, and public access to ports 80 (App), 8080 (Jenkins UI), and 3000 (Grafana).
+- **Key Management:** Auto-generated 4096-bit RSA key pair (`tls_private_key`) output as local `.pem` credential.
+
+### Observability Scope
+
+- **Metrics (Prometheus & OpenTelemetry Collector):**
+  - Request throughput (requests/sec)
+  - Latency distributions ($p95$ and $p99$ response times)
+  - Error rate tracking (HTTP 4xx and 5xx response codes)
+  - Node process and runtime health
+- **Logs (Loki & Pino):**
+  - Structured JSON application logs streamed in real-time via `pino-loki`
+  - Request paths, HTTP methods, and status codes
+  - Exception and database transaction failure stack traces
+- **Visualization (Grafana):**
+  - Unified dashboards combining Prometheus time-series metrics with synchronized Loki log panels for correlated root-cause analysis.
+
